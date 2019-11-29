@@ -17,6 +17,8 @@
 package org.jkiss.dbeaver.ui.editors.sql;
 
 import org.eclipse.jface.action.*;
+import org.eclipse.jface.text.IDocument;
+import org.eclipse.jface.text.ITextInputListener;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Font;
@@ -24,12 +26,19 @@ import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.IWorkbenchPartSite;
 import org.eclipse.ui.PlatformUI;
+import org.eclipse.ui.console.AbstractConsole;
+import org.eclipse.ui.console.IOConsole;
+import org.eclipse.ui.console.TextConsole;
+import org.eclipse.ui.console.TextConsolePage;
+import org.eclipse.ui.console.TextConsoleViewer;
 import org.eclipse.ui.themes.ITheme;
 import org.jkiss.dbeaver.model.sql.SQLConstants;
 import org.jkiss.dbeaver.ui.controls.StyledTextUtils;
 import org.jkiss.dbeaver.ui.editors.TextEditorUtils;
 
 import java.io.IOException;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
 
@@ -38,7 +47,8 @@ import java.io.Writer;
  */
 public class SQLEditorOutputViewer extends Composite {
 
-    private final StyledText text;
+    private final TextConsoleViewer text;
+    private final IOConsole ioConsole;
     private PrintWriter writer;
     private boolean hasNewOutput;
 
@@ -46,34 +56,59 @@ public class SQLEditorOutputViewer extends Composite {
         super(parent, style);
         setLayout(new FillLayout());
 
-        text = new StyledText(this, SWT.READ_ONLY | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL);
-        text.setMargins(5, 5, 5, 5);
-        TextEditorUtils.enableHostEditorKeyBindingsSupport(site, text);
-        Writer out = new Writer() {
-            @Override
-            public void write(final char[] cbuf, final int off, final int len) throws IOException {
-                text.append(String.valueOf(cbuf, off, len));
-                if (len > 0) {
-                    hasNewOutput = true;
-                }
-            }
-
-            @Override
-            public void flush() throws IOException {
-            }
-
-            @Override
-            public void close() throws IOException {
-            }
-        };
-        writer = new PrintWriter(out, true);
+        ioConsole = new IOConsole("hello", null);
+//        text = new StyledText(this, SWT.READ_ONLY | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL);
+        
+        PipedOutputStream out = new PipedOutputStream();
+        PipedInputStream in = new PipedInputStream();
+		try {
+			out = new PipedOutputStream(in);
+	        writer = new PrintWriter(out);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		ioConsole.setInputStream(in);
+		text = new TextConsoleViewer(this, ioConsole);
+		text.addTextInputListener(new ITextInputListener() {
+			@Override
+			public void inputDocumentChanged(IDocument arg0, IDocument arg1) {
+				System.out.println("changed");
+			}
+			
+			@Override
+			public void inputDocumentAboutToBeChanged(IDocument arg0, IDocument arg1) {
+				System.out.println("about");
+			}
+		});
+//        text.setMargins(5, 5, 5, 5);
+//        TextEditorUtils.enableHostEditorKeyBindingsSupport(site, text);
+//        Writer out = new Writer() {
+//            @Override
+//            public void write(final char[] cbuf, final int off, final int len) throws IOException {
+//            	text.getDocument()
+//                text.append(String.valueOf(cbuf, off, len));
+//                if (len > 0) {
+//                    hasNewOutput = true;
+//                }
+//            }
+//
+//            @Override
+//            public void flush() throws IOException {
+//            }
+//
+//            @Override
+//            public void close() throws IOException {
+//            }
+//        };
+//        writer = new PrintWriter();
         createContextMenu(site);
         refreshStyles();
     }
 
-    public StyledText getText() {
-        return text;
-    }
+//    public TextConsole getText() {
+//        return textCon;
+//    }
 
     void refreshStyles() {
         ITheme currentTheme = PlatformUI.getWorkbench().getThemeManager().getCurrentTheme();
@@ -81,13 +116,14 @@ public class SQLEditorOutputViewer extends Composite {
         if (outputFont != null) {
             this.text.setFont(outputFont);
         }
-        this.text.setForeground(currentTheme.getColorRegistry().get(SQLConstants.CONFIG_COLOR_TEXT));
-        this.text.setBackground(currentTheme.getColorRegistry().get(SQLConstants.CONFIG_COLOR_BACKGROUND));
+//        this.text.setForeground(currentTheme.getColorRegistry().get(SQLConstants.CONFIG_COLOR_TEXT));
+//        this.text.setBackground(currentTheme.getColorRegistry().get(SQLConstants.CONFIG_COLOR_BACKGROUND));
     }
 
     void print(String out)
     {
-        text.append(out);
+    	writer.print(out);
+//        text.append(out);
     }
 
     void println(String out)
@@ -97,7 +133,7 @@ public class SQLEditorOutputViewer extends Composite {
 
     void scrollToEnd()
     {
-        text.setTopIndex(text.getLineCount() - 1);
+//        text.setTopIndex(text.getLineCount() - 1);
     }
 
     public PrintWriter getOutputWriter() {
@@ -115,23 +151,23 @@ public class SQLEditorOutputViewer extends Composite {
     private void createContextMenu(IWorkbenchPartSite site)
     {
         MenuManager menuMgr = new MenuManager();
-        menuMgr.addMenuListener(manager -> {
-            StyledTextUtils.fillDefaultStyledTextContextMenu(manager, text);
-            manager.add(new Separator());
-            manager.add(new Action("Clear") {
-                @Override
-                public void run() {
-                    clearOutput();
-                }
-            });
-        });
-        menuMgr.setRemoveAllWhenShown(true);
-        text.setMenu(menuMgr.createContextMenu(text));
-        text.addDisposeListener(e -> menuMgr.dispose());
+//        menuMgr.addMenuListener(manager -> {
+//            StyledTextUtils.fillDefaultStyledTextContextMenu(manager, text);
+//            manager.add(new Separator());
+//            manager.add(new Action("Clear") {
+//                @Override
+//                public void run() {
+//                    clearOutput();
+//                }
+//            });
+//        });
+//        menuMgr.setRemoveAllWhenShown(true);
+//        text.setMenu(menuMgr.createContextMenu(text));
+//        text.addDisposeListener(e -> menuMgr.dispose());
     }
 
     void clearOutput() {
-        text.setText("");
+    	ioConsole.clearConsole();
     }
 
 }

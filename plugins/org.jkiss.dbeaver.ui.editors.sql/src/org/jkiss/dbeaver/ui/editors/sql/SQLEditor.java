@@ -45,6 +45,9 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.*;
 import org.eclipse.ui.*;
 import org.eclipse.ui.actions.CompoundContributionItem;
+import org.eclipse.ui.console.IOConsole;
+import org.eclipse.ui.console.TextConsole;
+import org.eclipse.ui.console.TextConsoleViewer;
 import org.eclipse.ui.ide.FileStoreEditorInput;
 import org.eclipse.ui.texteditor.DefaultRangeIndicator;
 import org.eclipse.ui.texteditor.ITextEditorActionConstants;
@@ -173,7 +176,12 @@ public class SQLEditor extends SQLEditorBase implements
     private CTabItem activeResultsTab;
 
     private SQLLogPanel logViewer;
-    private SQLEditorOutputViewer outputViewer;
+//    private SQLEditorOutputViewer outputViewer;
+    private TextConsoleViewer outputViewer;
+    private IOConsole console;
+    private PrintWriter writer;
+    private PipedOutputStream out;
+    private PipedInputStream in;
 
     private volatile QueryProcessor curQueryProcessor;
     private final List<QueryProcessor> queryProcessors = new ArrayList<>();
@@ -528,19 +536,21 @@ public class SQLEditor extends SQLEditorBase implements
         @Override
         public void write(@NotNull final char[] cbuf, final int off, final int len) {
             UIUtils.syncExec(() -> {
-                if (!outputViewer.isDisposed()) {
-                    outputViewer.getOutputWriter().write(cbuf, off, len);
-                    outputViewer.scrollToEnd();
-                    if (!outputViewer.isVisible()) {
-                        updateOutputViewerIcon(true);
-                    }
-                }
+            	writer.write(cbuf, off, len);
+//                if (!outputViewer.isDisposed()) {
+//                    outputViewer.getOutputWriter().write(cbuf, off, len);
+//                    outputViewer.scrollToEnd();
+//                    if (!outputViewer.isVisible()) {
+//                        updateOutputViewerIcon(true);
+//                    }
+//                }
             });
         }
 
         @Override
         public void flush() throws IOException {
-            outputViewer.getOutputWriter().flush();
+        	writer.flush();
+//            outputViewer.getOutputWriter().flush();
         }
 
         @Override
@@ -952,7 +962,19 @@ public class SQLEditor extends SQLEditorBase implements
         // Extra views
         //planView = new ExplainPlanViewer(this, resultTabs);
         logViewer = new SQLLogPanel(resultTabs, this);
-        outputViewer = new SQLEditorOutputViewer(getSite(), resultTabs, SWT.NONE);
+//        outputViewer = new SQLEditorOutputViewer(getSite(), resultTabs, SWT.NONE);
+        console = new IOConsole("sql", null);
+        outputViewer = new TextConsoleViewer(resultTabs, console);
+        try {
+            PipedInputStream in = new PipedInputStream();
+            PipedOutputStream out = new PipedOutputStream(in);
+            console.setInputStream(in);
+            out.write("Hello World".getBytes());
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+        writer = new PrintWriter(out);
 
         // Create results tab
         createQueryProcessor(true, true);
@@ -1063,9 +1085,10 @@ public class SQLEditor extends SQLEditorBase implements
             }
         }
 
-        if (view == outputViewer) {
+        if (view == outputViewer.getControl()) {
             updateOutputViewerIcon(false);
-            outputViewer.resetNewOutput();
+//            console.clearConsole();
+//            outputViewer.resetNewOutput();
         }
         // Create new tab
         viewItem.setChecked(true);
@@ -1116,7 +1139,7 @@ public class SQLEditor extends SQLEditorBase implements
         if (resultsSash.getMaximizedControl() != null) {
             resultsSash.setMaximizedControl(null);
         }
-        showExtraView(SQLEditorCommands.CMD_SQL_SHOW_OUTPUT, SQLEditorMessages.editors_sql_output, SQLEditorMessages.editors_sql_output_tip, IMG_OUTPUT, outputViewer);
+        showExtraView(SQLEditorCommands.CMD_SQL_SHOW_OUTPUT, SQLEditorMessages.editors_sql_output, SQLEditorMessages.editors_sql_output_tip, IMG_OUTPUT, outputViewer.getControl());
     }
 
     public void showExecutionLogPanel() {
@@ -1825,7 +1848,8 @@ public class SQLEditor extends SQLEditorBase implements
         boolean extraTabsClosed = false;
         if (!export) {
             if (getActivePreferenceStore().getBoolean(SQLPreferenceConstants.CLEAR_OUTPUT_BEFORE_EXECUTE)) {
-                outputViewer.clearOutput();
+//            	console.clearConsole();
+//                outputViewer.clearOutput();
             }
 
             if (!newTab || !isSingleQuery) {
@@ -2290,7 +2314,8 @@ public class SQLEditor extends SQLEditorBase implements
     public void reloadSyntaxRules() {
         super.reloadSyntaxRules();
         if (outputViewer != null) {
-            outputViewer.refreshStyles();
+        	outputViewer.refresh();
+//            outputViewer.refreshStyles();
         }
     }
 
@@ -3224,9 +3249,9 @@ public class SQLEditor extends SQLEditorBase implements
         @Override
         public IFindReplaceTarget getTarget() {
             CTabItem activeResultsTab = getActiveResultsTab();
-            if (activeResultsTab != null && outputViewer != null && activeResultsTab.getData() == outputViewer) {
-                return new StyledTextFindReplaceTarget(outputViewer.getText());
-            }
+//            if (activeResultsTab != null && outputViewer != null && activeResultsTab.getData() == outputViewer) {
+//                return new StyledTextFindReplaceTarget(outputViewer.getText());
+//            }
             ResultSetViewer rsv = getActiveResultSetViewer();
             TextViewer textViewer = getTextViewer();
             boolean focusInEditor = textViewer != null && textViewer.getTextWidget().isFocusControl();
@@ -3442,18 +3467,19 @@ public class SQLEditor extends SQLEditorBase implements
                     .replace("\0", ""); // Remove zero characters
             if (!dumpString.isEmpty()) {
                 UIUtils.asyncExec(() -> {
-                    if (outputViewer.isDisposed()) {
-                        return;
-                    }
-                    try {
-                        IOUtils.copyText(new StringReader(dumpString), outputViewer.getOutputWriter());
-                    } catch (IOException e) {
-                        log.error(e);
-                    }
-                    if (outputViewer.isHasNewOutput()) {
-                        outputViewer.scrollToEnd();
-                        updateOutputViewerIcon(true);
-                    }
+//                    if (outputViewer.isDisposed()) {
+//                        return;
+//                    }
+                	writer.println(dumpString);
+//                    try {
+////                        IOUtils.copyText(new StringReader(dumpString), outputViewer.getOutputWriter());
+//                    } catch (IOException e) {
+//                        log.error(e);
+//                    }
+//                    if (outputViewer.isHasNewOutput()) {
+//                        outputViewer.scrollToEnd();
+//                        updateOutputViewerIcon(true);
+//                    }
                 });
             }
         }
