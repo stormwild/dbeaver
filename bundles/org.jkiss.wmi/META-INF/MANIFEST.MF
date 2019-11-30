@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: %Bundle-Name
 Bundle-SymbolicName: org.jkiss.wmi
 Bundle-Version: 2.0.115.qualifier
-Bundle-Release-Date: 20191202
+Bundle-Release-Date: 20191209
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-Vendor: %Bundle-Vendor
 Export-Package: org.jkiss.wmi.service
